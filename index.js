@@ -100,6 +100,10 @@ class MPV {
   }
 
   _flush () {
+    if (!this.sock) {
+      return
+    }
+
     for (const [, request] of this.requests) {
       if (request.sent) continue
       const data = JSON.stringify(request.packet) + '\n'
