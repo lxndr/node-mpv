@@ -1,0 +1,4 @@
+extends: standard
+
+rules:
+  promise/param-names: off
