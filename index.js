@@ -1,5 +1,6 @@
 const os = require('os')
 const net = require('net')
+const path = require('path')
 const { tmpNameSync } = require('tmp')
 const { spawn } = require('child_process')
 
@@ -17,10 +18,19 @@ function generatePipeName () {
   }
 }
 
+function findExecutable () {
+  switch (os.platform()) {
+    case 'win32':
+      return path.join(__dirname, 'bin/win32/mpv.exe')
+    default:
+      return 'mpv'
+  }
+}
+
 class MPV {
   constructor (options = {}) {
     const {
-      exec = 'mpv',
+      exec = findExecutable(),
       pipeName = generatePipeName()
     } = options
 
