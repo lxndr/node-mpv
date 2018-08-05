@@ -1,6 +1,7 @@
 const os = require('os')
 const net = require('net')
 const path = require('path')
+const debug = require('debug')
 const { tmpNameSync } = require('tmp')
 const { spawn } = require('child_process')
 
@@ -8,6 +9,8 @@ const defer = require('./utils/defer')
 const Evented = require('./utils/evented')
 const uniqueId = require('./utils/unique-id')
 const waitForFile = require('./utils/wait-for-file')
+
+const log = debug('mpv')
 
 function generatePipeName () {
   switch (os.platform()) {
@@ -63,6 +66,7 @@ class MPV {
           this.buffer = responses.pop()
 
           for (const response of responses) {
+            log('sends', response)
             this._processResponse(JSON.parse(response))
           }
         })
@@ -116,8 +120,9 @@ class MPV {
 
     for (const [, request] of this.requests) {
       if (request.sent) continue
-      const data = JSON.stringify(request.packet) + '\n'
-      this.sock.write(data)
+      const data = JSON.stringify(request.packet)
+      log('receives', data)
+      this.sock.write(data + '\n')
       request.sent = true
     }
   }

@@ -2,3 +2,7 @@ extends: standard
 
 rules:
   promise/param-names: off
+  camelcase:
+  - error
+  - properties: never
+    ignoreDestructuring: true
