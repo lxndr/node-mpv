@@ -1,7 +1,7 @@
 const os = require('os')
 const net = require('net')
 const path = require('path')
-const debug = require('debug')
+const log = require('debug')('mpv')
 const { tmpNameSync } = require('tmp')
 const { spawn } = require('child_process')
 
@@ -9,8 +9,6 @@ const defer = require('./utils/defer')
 const Evented = require('./utils/evented')
 const uniqueId = require('./utils/unique-id')
 const waitForFile = require('./utils/wait-for-file')
-
-const log = debug('mpv')
 
 function generatePipeName () {
   switch (os.platform()) {
@@ -50,7 +48,10 @@ class MPV {
       '--idle',
       '--quiet',
       '--input-ipc-server', pipeName
-    ])
+    ], {
+      detached: false,
+      windowsHide: true
+    })
 
     this.initPromise = waitForFile({filename: pipeName})
       .then(() => {
@@ -69,22 +70,6 @@ class MPV {
             log('sends', response)
             this._processResponse(JSON.parse(response))
           }
-        })
-
-        this.sock.on('error', error => {
-          console.log('ERROR', error)
-        })
-
-        this.sock.on('end', () => {
-          console.log('END')
-        })
-
-        this.sock.on('timeout', () => {
-          console.log('TIMEOUT')
-        })
-
-        this.sock.on('close', () => {
-          console.log('CLOSE')
         })
       })
   }
