@@ -10,6 +10,19 @@ const Evented = require('./utils/evented')
 const uniqueId = require('./utils/unique-id')
 const waitForFile = require('./utils/wait-for-file')
 
+const processes = new Set()
+
+function killProcesses () {
+  for (const process of processes) {
+    process.kill()
+  }
+}
+
+process.on('beforeExit', killProcesses)
+process.on('uncaughtException', killProcesses)
+process.on('SIGINT', killProcesses)
+process.on('SIGTERM', killProcesses)
+
 function generatePipeName () {
   switch (os.platform()) {
     case 'win32':
@@ -53,7 +66,9 @@ class MPV {
       windowsHide: true
     })
 
-    this.initPromise = waitForFile({filename: pipeName})
+    processes.add(this.cp)
+
+    this.initPromise = waitForFile({ filename: pipeName })
       .then(() => {
         this.sock = net.connect(pipeName, () => {
           this._flush()
@@ -79,7 +94,9 @@ class MPV {
   }
 
   close () {
+    this.sock.close()
     this.cp.kill()
+    processes.delete(this.cp)
   }
 
   async command (command, ...args) {
