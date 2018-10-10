@@ -59,7 +59,10 @@ class MPV {
 
     this.cp = spawn(exec, [
       '--idle',
-      '--quiet',
+      '--really-quiet',
+      '--no-terminal',
+      '--no-video',
+      '--no-config',
       '--input-ipc-server', pipeName
     ], {
       detached: false,
@@ -94,7 +97,7 @@ class MPV {
   }
 
   close () {
-    this.sock.close()
+    this.sock.end()
     this.cp.kill()
     processes.delete(this.cp)
   }
