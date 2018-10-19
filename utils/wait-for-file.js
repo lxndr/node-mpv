@@ -1,6 +1,6 @@
 const fs = require('fs')
 
-function waitForFile ({filename, timeout = 5000, interval = 200}) {
+function waitForFile ({ filename, timeout = 5000, interval = 200 }) {
   return new Promise((resolve, reject) => {
     const succeess = () => {
       clearInterval(intervalId)

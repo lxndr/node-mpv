@@ -10,19 +10,6 @@ const Evented = require('./utils/evented')
 const uniqueId = require('./utils/unique-id')
 const waitForFile = require('./utils/wait-for-file')
 
-const processes = new Set()
-
-function killProcesses () {
-  for (const process of processes) {
-    process.kill()
-  }
-}
-
-process.on('beforeExit', killProcesses)
-process.on('uncaughtException', killProcesses)
-process.on('SIGINT', killProcesses)
-process.on('SIGTERM', killProcesses)
-
 function generatePipeName () {
   switch (os.platform()) {
     case 'win32':
@@ -35,7 +22,13 @@ function generatePipeName () {
 function findExecutable () {
   switch (os.platform()) {
     case 'win32':
-      return path.join(__dirname, 'bin/win32/mpv.exe')
+      switch (os.arch()) {
+        case 'win32':
+          return path.join(__dirname, 'bin/win32/mpv.exe')
+        case 'win64':
+          return path.join(__dirname, 'bin/win64/mpv.exe')
+      }
+      break
     default:
       return 'mpv'
   }
@@ -69,8 +62,6 @@ class MPV {
       windowsHide: true
     })
 
-    processes.add(this.cp)
-
     this.initPromise = waitForFile({ filename: pipeName })
       .then(() => {
         this.sock = net.connect(pipeName, () => {
@@ -99,7 +90,6 @@ class MPV {
   close () {
     this.sock.end()
     this.cp.kill()
-    processes.delete(this.cp)
   }
 
   async command (command, ...args) {
