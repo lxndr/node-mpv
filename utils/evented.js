@@ -1,8 +1,19 @@
+/**
+ * @callback EventedCallback
+ */
+
+/**
+ *
+ */
 class Evented {
   constructor () {
     this.events = new Map()
   }
 
+  /**
+   * @param {string} eventName
+   * @param {EventedCallback} callback
+   */
   on (eventName, callback) {
     let callbacks = this.events.get(eventName)
 
@@ -18,6 +29,9 @@ class Evented {
     }
   }
 
+  /**
+   * @param {string} eventName
+   */
   emit (eventName, ...args) {
     const callbacks = this.events.get(eventName)
 

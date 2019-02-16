@@ -1,30 +1,31 @@
-const fs = require('fs')
+const chokidar = require('chokidar')
 
-function waitForFile ({ filename, timeout = 5000, interval = 200 }) {
-  return new Promise((resolve, reject) => {
-    const succeess = () => {
-      clearInterval(intervalId)
-      clearTimeout(timeoutId)
-      resolve()
-    }
+/**
+ * @param {object} options
+ * @param {string} options.filename
+ * @param {number} options.timeout
+ * @param {Function} options.onsuccess
+ * @param {Function} options.ontimeout
+ */
+function waitForFile ({ filename, timeout, onsuccess, ontimeout }) {
+  const stop = () => {
+    watcher.close()
+    clearTimeout(timeoutId)
+  }
 
-    const failure = () => {
-      clearInterval(intervalId)
-      clearTimeout(timeoutId)
-      reject(new Error('Timed out'))
-    }
+  const watcher = chokidar
+    .watch(filename)
+    .on('add', () => {
+      stop()
+      onsuccess()
+    })
 
-    const check = () => {
-      fs.access(filename, err => {
-        if (!err) {
-          succeess()
-        }
-      })
-    }
+  const timeoutId = setTimeout(() => {
+    stop()
+    ontimeout()
+  }, timeout)
 
-    const intervalId = setInterval(check, interval)
-    const timeoutId = setTimeout(failure, timeout)
-  })
+  return { stop }
 }
 
 module.exports = waitForFile
