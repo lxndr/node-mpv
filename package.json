@@ -1,7 +1,7 @@
 {
   "name": "@lxndr/mpv",
-  "version": "0.0.1",
-  "description": "libmpv binding",
+  "version": "0.2.0",
+  "description": "A wrapper around mpv",
   "main": "index.js",
   "scripts": {
     "test": "jest",
@@ -13,17 +13,18 @@
     "node": ">=6.0.0"
   },
   "dependencies": {
-    "chokidar": "^2.1.1",
+    "chokidar": "^2.1.2",
     "debug": "^4.1.1",
-    "p-defer": "^1.0.0",
-    "tmp": "0.0.33"
+    "leaked-handles": "^5.2.0",
+    "p-defer": "^1.0.0"
   },
   "devDependencies": {
+    "acorn": "^6.1.0",
     "ajv": "^6.9.1",
-    "eslint": "^5.13.0",
+    "eslint": "^5.14.1",
     "eslint-config-standard": "^12.0.0",
     "eslint-plugin-import": "^2.16.0",
-    "eslint-plugin-node": "^7.0.1",
+    "eslint-plugin-node": "^8.0.1",
     "eslint-plugin-promise": "^4.0.1",
     "eslint-plugin-standard": "^4.0.0",
     "jest": "^24.1.0"

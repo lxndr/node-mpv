@@ -1,5 +1,8 @@
 let id = 1
 
+/**
+ * @returns {number}
+ */
 function uniqueId () {
   return id++
 }

@@ -1,4 +1,8 @@
 extends: standard
 
 rules:
-  camelcase: off
+  camelcase:
+  - error
+  - allow:
+    - __dirname
+    - request_id
