@@ -5,12 +5,15 @@ describe('Mpv errors', () => {
   test('mpv porcess is killed', (done) => {
     const mpv = new Mpv()
 
-    mpv.on('error', (err) => {
-      expect(err.message).toBe('MPV executable was unexpectably terminated')
-      expect(mpv.closed).toBe(true)
-      done()
+    mpv.on('connect', () => {
+      process.kill(mpv.cp.pid)
     })
 
-    process.kill(mpv.cp.pid)
+    mpv.on('error', (err) => {
+      expect(err.message).toBeTruthy()
+      expect(mpv.closed).toBe(true)
+      mpv.close()
+      done()
+    })
   })
 })

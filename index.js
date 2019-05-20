@@ -3,7 +3,7 @@ const os = require('os')
 const net = require('net')
 const path = require('path')
 const tmp = require('tmp')
-const log = require('debug')('mpv')
+const log = require('debug')('node-mpv')
 const { spawn } = require('child_process')
 const defer = require('p-defer')
 
@@ -128,7 +128,12 @@ class Mpv {
       windowsHide: true
     })
 
+    this.cp.on('error', (error) => {
+      log('mvp process errored', error.message)
+    })
+
     this.cp.on('close', () => {
+      log('mvp proccess closed')
       if (this.closed) return
       this._fatalError(new Error('MPV executable was unexpectably terminated'))
     })
@@ -140,18 +145,26 @@ class Mpv {
   _connect () {
     if (this.closed) return
 
+    log('connecting to', this.execPipe)
+
     this.sock = net.connect(this.execPipe, () => {
+      log('connected')
+      this.events.emit('connect')
       this.connected = true
       this._flush()
     })
 
     this.sock.on('close', () => {
+      log('socket closed')
+
       if (this.connected) {
         this._fatalError(new Error('Socket connection was unexpectably terminated'))
       }
     })
 
     this.sock.on('error', (error) => {
+      log('socket errored:', error.message)
+
       if (this.connected) {
         this._fatalError(error)
         return
@@ -168,21 +181,24 @@ class Mpv {
       this.buffer = responses.pop()
 
       for (const response of responses) {
-        log('sends', response)
+        log('received', response)
         this._processResponse(JSON.parse(response))
       }
     })
   }
 
-  _reconnect() {
+  _disconnect() {
     if (this.sock) {
       this.sock.end()
       this.sock.destroy()
       this.sock = null
       this.connected = false
     }
+  }
 
-    this._connect()
+  _reconnect() {
+    this._disconnect()
+    setTimeout(() => this._connect(), 200)
   }
 
   /**
@@ -199,13 +215,7 @@ class Mpv {
    */
   close () {
     this.closed = true
-
-    if (this.sock) {
-      this.sock.end()
-      this.sock.destroy()
-      this.sock = null
-      this.connected = false
-    }
+    this._disconnect()
 
     if (this.cp) {
       this.cp.kill()
@@ -247,7 +257,7 @@ class Mpv {
 
     for (const [, request] of this.requests) {
       if (request.sent) continue
-      log('receives', request.packet)
+      log('sent', request.packet)
       this.sock.write(request.packet + '\n')
       request.sent = true
     }
