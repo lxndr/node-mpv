@@ -2,18 +2,18 @@ const fs = require('fs')
 const os = require('os')
 const net = require('net')
 const path = require('path')
+const tmp = require('tmp')
 const log = require('debug')('mpv')
 const { spawn } = require('child_process')
 const defer = require('p-defer')
 
 const Evented = require('./utils/evented')
 const uniqueId = require('./utils/unique-id')
-const waitForFile = require('./utils/wait-for-file')
 
 /**
  * @typedef {import('net').Socket} Socket
  * @typedef {import('child_process').ChildProcess} ChildProcess
- * @typedef {import('p-defer').DeferredPromise} DeferredPromise
+ * @typedef {import('p-defer').DeferredPromise<any>} DeferredPromise
  * @typedef {import('./utils/evented').EventCallback} EventCallback
  */
 
@@ -33,15 +33,11 @@ const waitForFile = require('./utils/wait-for-file')
  */
 
 /**
- * @returns {string}
+ * @param {(err: Error, filename: string) => void} cb
  */
-function generatePipeName () {
-  switch (os.platform()) {
-    case 'win32':
-      return '\\\\.\\pipe\\node-mpv'
-    default:
-      return '/tmp/node-mpv-ipc'
-  }
+function generatePipeName (cb) {
+  const dir = os.platform() === 'win32' ? '//./pipe' : undefined
+  tmp.tmpName({ dir, prefix: 'node-mpv-' }, cb)
 }
 
 /**
@@ -50,13 +46,9 @@ function generatePipeName () {
 function findExecutable () {
   switch (os.platform()) {
     case 'win32':
-      switch (os.arch()) {
-        case 'win32':
-          return path.join(__dirname, 'bin/win32/mpv.exe')
-        case 'win64':
-          return path.join(__dirname, 'bin/win64/mpv.exe')
-      }
-      break
+      return os.arch() === 'x32'
+        ? path.join(__dirname, 'bin/win32/mpv.exe')
+        : path.join(__dirname, 'bin/win64/mpv.exe')
     default:
       return 'mpv'
   }
@@ -71,7 +63,7 @@ class Mpv {
    */
   constructor (options = {}) {
     this.exec = options.exec || findExecutable()
-    this.execPipe = options.execPipe || generatePipeName()
+    this.execPipe = ''
     this.execTimeout = options.execTimeout || 60000
 
     this.events = new Evented()
@@ -83,13 +75,14 @@ class Mpv {
     /** @type {string} */
     this.buffer = ''
 
-    this.pipeWatcher = null
-
     /** @type {?ChildProcess} */
     this.cp = null
 
     /** @type {?Socket} */
     this.sock = null
+
+    /** @type {boolean} */
+    this.connected = false
 
     /** @type {boolean} */
     this.closed = false
@@ -105,28 +98,15 @@ class Mpv {
    * @private
    */
   _init () {
-    fs.unlink(this.execPipe, (error) => {
-      if (this.closed) {
+    generatePipeName((err, execPipe) => {
+      if (err) {
+        this._fatalError(err)
         return
       }
 
-      if (error && error.code !== 'ENOENT') {
-        this._fatalError(new Error('Could not remove pipe file'))
-        return
-      }
-
+      this.execPipe = execPipe
       this._spawn()
-
-      this.pipeWatcher = waitForFile({
-        filename: this.execPipe,
-        timeout: this.execTimeout,
-        onsuccess: () => {
-          this._connect()
-        },
-        ontimeout: () => {
-          this._fatalError(new Error('Pipe timed out'))
-        }
-      })
+      this._connect()
     })
   }
 
@@ -134,9 +114,7 @@ class Mpv {
    * @private
    */
   _spawn () {
-    if (this.closed) {
-      return
-    }
+    if (this.closed) return
 
     this.cp = spawn(this.exec, [
       '--idle',
@@ -151,6 +129,7 @@ class Mpv {
     })
 
     this.cp.on('close', () => {
+      if (this.closed) return
       this._fatalError(new Error('MPV executable was unexpectably terminated'))
     })
   }
@@ -158,21 +137,27 @@ class Mpv {
   /**
    * @private
    */
-  async _connect () {
-    if (this.closed) {
-      return
-    }
+  _connect () {
+    if (this.closed) return
 
     this.sock = net.connect(this.execPipe, () => {
+      this.connected = true
       this._flush()
     })
 
     this.sock.on('close', () => {
-      this._fatalError(new Error('Socket connection was unexpectably terminated'))
+      if (this.connected) {
+        this._fatalError(new Error('Socket connection was unexpectably terminated'))
+      }
     })
 
     this.sock.on('error', (error) => {
-      this._fatalError(error)
+      if (this.connected) {
+        this._fatalError(error)
+        return
+      }
+
+      this._reconnect()
     })
 
     this.sock.on('data', data => {
@@ -187,6 +172,17 @@ class Mpv {
         this._processResponse(JSON.parse(response))
       }
     })
+  }
+
+  _reconnect() {
+    if (this.sock) {
+      this.sock.end()
+      this.sock.destroy()
+      this.sock = null
+      this.connected = false
+    }
+
+    this._connect()
   }
 
   /**
@@ -204,15 +200,11 @@ class Mpv {
   close () {
     this.closed = true
 
-    if (this.pipeWatcher) {
-      this.pipeWatcher.stop()
-      this.pipeWatcher = null
-    }
-
     if (this.sock) {
       this.sock.end()
       this.sock.destroy()
       this.sock = null
+      this.connected = false
     }
 
     if (this.cp) {
@@ -249,7 +241,7 @@ class Mpv {
    * @private
    */
   _flush () {
-    if (!this.sock) {
+    if (!(this.sock && this.connected )) {
       return
     }
 
@@ -270,6 +262,7 @@ class Mpv {
 
     if (error && request_id) {
       const request = this.requests.get(request_id)
+      if (!request) return
 
       if (error === 'success') {
         request.deferred.resolve(rest.data)
@@ -303,7 +296,7 @@ class Mpv {
 
     const unsubscribe = this.observables.on(propertyName, callback)
 
-    return async function removeCallback () {
+    return async () => {
       await this.command('unobserve_property', id)
       unsubscribe()
     }
@@ -314,7 +307,7 @@ class Mpv {
    * @returns {Promise<*>}
    */
   async get (propertyName) {
-    return this.command('get_property', propertyName)
+    return await this.command('get_property', propertyName)
   }
 
   /**

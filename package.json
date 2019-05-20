@@ -5,28 +5,33 @@
   "main": "index.js",
   "scripts": {
     "test": "jest",
-    "lint": "eslint ."
+    "test:coverage": "jest --coverage",
+    "lint": "eslint .",
+    "tsc": "tsc"
   },
   "author": "lxndr",
   "license": "ISC",
   "engines": {
-    "node": ">=6.0.0"
+    "node": ">=10.0.0"
   },
   "dependencies": {
-    "chokidar": "^2.1.2",
     "debug": "^4.1.1",
-    "leaked-handles": "^5.2.0",
-    "p-defer": "^1.0.0"
+    "p-defer": "^2.1.0"
   },
   "devDependencies": {
-    "acorn": "^6.1.0",
-    "ajv": "^6.9.1",
-    "eslint": "^5.14.1",
+    "@types/babel-core": "^6.25.6",
+    "@types/debug": "^4.1.4",
+    "@types/node": "^12.0.2",
+    "@types/p-defer": "^2.0.0",
+    "@types/tmp": "^0.1.0",
+    "ajv": "^6.10.0",
+    "eslint": "^5.16.0",
     "eslint-config-standard": "^12.0.0",
-    "eslint-plugin-import": "^2.16.0",
-    "eslint-plugin-node": "^8.0.1",
-    "eslint-plugin-promise": "^4.0.1",
+    "eslint-plugin-import": "^2.17.2",
+    "eslint-plugin-node": "^9.0.1",
+    "eslint-plugin-promise": "^4.1.1",
     "eslint-plugin-standard": "^4.0.0",
-    "jest": "^24.1.0"
+    "jest": "^24.8.0",
+    "typescript": "^3.4.5"
   }
 }

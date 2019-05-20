@@ -1,5 +1,7 @@
 /**
  * @callback EventCallback
+ * @param {...*} args
+ * @returns {void}
  */
 
 /**
