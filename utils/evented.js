@@ -14,17 +14,27 @@ class Evented {
   }
 
   /**
+   * @private
+   * @param {string} eventName
+   */
+  _ensure (eventName) {
+    let callbacks = this.events.get(eventName)
+
+    if (callbacks) {
+      return callbacks
+    }
+
+    callbacks = new Set()
+    this.events.set(eventName, callbacks)
+    return callbacks
+  }
+
+  /**
    * @param {string} eventName
    * @param {EventCallback} callback
    */
   on (eventName, callback) {
-    let callbacks = this.events.get(eventName)
-
-    if (!callbacks) {
-      callbacks = new Set()
-      this.events.set(eventName, callbacks)
-    }
-
+    const callbacks = this._ensure(eventName)
     callbacks.add(callback)
 
     return function removeCallback () {

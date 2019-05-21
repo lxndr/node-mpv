@@ -58,13 +58,10 @@ class Mpv {
   /**
    * @param {object} [options]
    * @param {string} [options.exec]
-   * @param {string} [options.execPipe]
-   * @param {number} [options.execTimeout]
    */
   constructor (options = {}) {
     this.exec = options.exec || findExecutable()
     this.execPipe = ''
-    this.execTimeout = options.execTimeout || 60000
 
     this.events = new Evented()
     this.observables = new Evented()
@@ -177,8 +174,8 @@ class Mpv {
       this.buffer += data.toString()
 
       const responses = this.buffer.split('\n')
-      if (responses.length === 1) return
-      this.buffer = responses.pop()
+      if (responses.length <= 1) return
+      this.buffer = responses.pop() || ''
 
       for (const response of responses) {
         log('received', response)
@@ -187,7 +184,10 @@ class Mpv {
     })
   }
 
-  _disconnect() {
+  /**
+   * @private
+   */
+  _disconnect () {
     if (this.sock) {
       this.sock.end()
       this.sock.destroy()
@@ -196,7 +196,10 @@ class Mpv {
     }
   }
 
-  _reconnect() {
+  /**
+   * @private
+   */
+  _reconnect () {
     this._disconnect()
     setTimeout(() => this._connect(), 200)
   }
@@ -251,7 +254,7 @@ class Mpv {
    * @private
    */
   _flush () {
-    if (!(this.sock && this.connected )) {
+    if (!(this.sock && this.connected)) {
       return
     }
 
@@ -317,7 +320,7 @@ class Mpv {
    * @returns {Promise<*>}
    */
   async get (propertyName) {
-    return await this.command('get_property', propertyName)
+    return this.command('get_property', propertyName)
   }
 
   /**
